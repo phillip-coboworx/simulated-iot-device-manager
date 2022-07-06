@@ -1,0 +1,26 @@
+{
+  "name": "simulated-iot-device",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint . --fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "azure-iot-device": "^1.17.8",
+    "azure-iot-device-mqtt": "^1.15.8",
+    "dotenv": "^11.0.0",
+    "i": "^0.3.7",
+    "npm": "^8.3.1",
+    "uuid": "^8.3.2",
+    "yaml": "2.0.0-10"
+  },
+  "devDependencies": {
+    "eslint": "^8.7.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.4"
+  }
+}
