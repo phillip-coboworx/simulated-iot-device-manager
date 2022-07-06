@@ -1,44 +1,55 @@
 require('dotenv').config();
 const { v4: uuidv4 } = require('uuid');
-const { argv } = require('process');
+// const { argv } = require('process');
 
 const Protocol = require('azure-iot-device-mqtt').Mqtt;
 const { Client } = require('azure-iot-device');
 const { Message } = require('azure-iot-device');
-const passedArguments = require('./utilities/commandLineArgsProcessor').Processor(argv);
-const [simulatorSettings, events] = require('./utilities/fileParser').FileParser(passedArguments);
+// const passedArguments = require('./utilities/commandLineArgsProcessor').Processor(argv);
+const parser = require('./utilities/fileParser');
 
-const connectionString = process.env.CONNECTION_STRING || '';
-const keepAliveSendInterval = events.keep_alive_send_interval;
-const intervalLimit = events.intervals.length;
-const runInLoop = simulatorSettings.loop;
-const nodeId = events.node_id;
+let events;
 
+let keepAliveSendInterval;
+let intervalLimit;
+let runInLoop;
+let deviceId;
+
+let client = null;
 let intervalCount = 0;
 let intervalLength;
 
-if (connectionString === '') {
-  throw new Error('Device connection string not set!');
+function devicInit(connectionString, devId, configFilePath, loop) {
+  if (connectionString === '') {
+    throw new Error('Device connection string not set!');
+  }
+
+  events = parser.FileParser(configFilePath);
+  deviceId = devId;
+  keepAliveSendInterval = events.keep_alive_send_interval;
+  intervalLimit = events.intervals.length;
+  runInLoop = loop;
+  client = Client.fromConnectionString(connectionString, Protocol);
+  client.on('connect', connectHandler);
+  client.on('error', errorHandler);
+  client.on('disconnect', disconnectHandler);
+  client.on('message', messageHandler);
+
+  client.open()
+    .catch((err) => {
+      console.error(`Could not connect: ${err.message}`);
+    });
 }
 
-const client = Client.fromConnectionString(connectionString, Protocol);
-client.on('connect', connectHandler);
-client.on('error', errorHandler);
-client.on('disconnect', disconnectHandler);
-client.on('message', messageHandler);
-
-client.open()
-  .catch((err) => {
-    console.error(`Could not connect: ${err.message}`);
-  });
-
-function errorHandler(error) {
-  throw new Error(error);
+function errorHandler(err) {
+  disconnectAndCloseConn();
+  throw new Error(`Error: ${err}`);
 }
 
 function disconnectHandler() {
   client.open().catch((err) => {
-    throw new Error(err);
+    disconnectAndCloseConn();
+    throw new Error(`Disconnection Err: ${err}`);
   });
 }
 
@@ -75,13 +86,14 @@ function generateMessage() {
   }
 
   const message = new Message(`[${intervalEvents.join(',')}]`);
+  console.log(`\nMSSG: ${JSON.stringify(message)}\n`);
   return message;
 }
 
 function generateMessageContent(eventType, payload) {
   const data = {};
   data.eventId = uuidv4();
-  data.nodeId = nodeId;
+  data.nodeId = deviceId;
   data.timestamp = Date.now();
   data.event = eventType;
   data.payload = payload;
@@ -95,8 +107,7 @@ function callbackHandler(op) {
     if (res) {
       console.log(`${op} status ${res.constructor.name}`);
       if (intervalCount >= intervalLimit) {
-        client.close();
-        process.exit();
+        disconnectAndCloseConn();
       } else {
         intervalLength = events.intervals[intervalCount].interval_length * 1000 || 2000;
         setTimeout(() => setIntervalActions(), intervalLength);
@@ -104,3 +115,10 @@ function callbackHandler(op) {
     }
   };
 }
+
+function disconnectAndCloseConn() {
+  client.close();
+  process.exit();
+}
+
+module.exports = devicInit;

@@ -1,37 +1,31 @@
 const YAMLParser = require('./YAMLParser').Parser;
 
-module.exports.FileParser = (passedArguments) => {
-  const simulatorSettings = {};
+module.exports.FileParser = (filePath) => {
   let events = {};
 
   function GetFileExtension(file) {
     return (file.match(/[^\\/]\.([^\\/.]+)$/) || [null]).pop();
   }
 
-  if (passedArguments.file) {
-    const fileExtension = GetFileExtension(passedArguments.file).toLowerCase();
-
+  if (filePath) {
+    const fileExtension = GetFileExtension(filePath).toLowerCase();
     switch (fileExtension) {
+      case 'yml':
       case 'yaml':
-        events = YAMLParser(passedArguments.file);
+        events = YAMLParser(filePath);
         break;
 
       case 'json':
-        events = require(passedArguments.file);
-        break;
-
       case 'js':
-        events = require(passedArguments.file);
+        events = require(filePath);
         break;
 
       default:
         throw new Error('Invalid format!');
     }
   } else {
-    events = YAMLParser('./templates/events.yml');
+    throw new Error('No config file path found!');
   }
 
-  simulatorSettings.loop = !!passedArguments.loop;
-
-  return [simulatorSettings, events];
+  return events;
 };
